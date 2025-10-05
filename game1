@@ -1,0 +1,82 @@
+# pip install pygame
+import pygame, random, sys
+
+W, H = 480, 640
+FPS = 60
+GROUND = 40
+MISS_MAX = 3
+SPAWN_MS = 700   # ความถี่เกิดดาว
+
+pygame.init()
+screen = pygame.display.set_mode((W, H))
+clock = pygame.time.Clock()
+font = pygame.font.SysFont(None, 24)
+SPAWN = pygame.USEREVENT + 1
+pygame.time.set_timer(SPAWN, SPAWN_MS)
+
+def new_game():
+    return {
+        "basket": pygame.Rect(W//2-45, H-GROUND-18, 90, 18),
+        "left": False, "right": False, "over": False,
+        "stars": [], "score": 0, "miss": 0
+    }
+
+g = new_game()
+
+def level(score):        # เพิ่มความเร็วตามเลเวล (ทุก 10 คะแนน)
+    return max(1, score // 10 + 1)
+
+def draw_text(msg, x, y):
+    screen.blit(font.render(msg, True, (240,240,255)), (x, y))
+
+while True:
+    for e in pygame.event.get():
+        if e.type == pygame.QUIT: pygame.quit(); sys.exit()
+        if e.type == pygame.KEYDOWN:
+            if e.key in (pygame.K_LEFT, pygame.K_a):  g["left"] = True
+            if e.key in (pygame.K_RIGHT, pygame.K_d): g["right"] = True
+            if e.key == pygame.K_SPACE and g["over"]: g = new_game()
+        if e.type == pygame.KEYUP:
+            if e.key in (pygame.K_LEFT, pygame.K_a):  g["left"] = False
+            if e.key in (pygame.K_RIGHT, pygame.K_d): g["right"] = False
+        if e.type == SPAWN and not g["over"]:
+            r = random.randint(14, 26)
+            x = random.randint(r, W-r)
+            rect = pygame.Rect(x-r, -r, r*2, r*2)
+            spd = 3 + random.random()*1.5
+            g["stars"].append([rect, spd])
+
+    # อัปเดต
+    if not g["over"]:
+        # บังคับตะกร้า
+        if g["left"]:  g["basket"].x -= 9
+        if g["right"]: g["basket"].x += 9
+        g["basket"].x = max(0, min(g["basket"].x, W - g["basket"].w))
+
+        # อัปเดตดาว
+        boost = (level(g["score"]) - 1) * 0.6
+        kept = []
+        for rect, spd in g["stars"]:
+            rect.y += spd + boost
+            if rect.colliderect(g["basket"]):           # จับได้
+                g["score"] += 1
+            elif rect.bottom >= H - GROUND:              # ตกพื้น
+                g["miss"] += 1
+            else:
+                kept.append([rect, spd])
+        g["stars"] = kept
+        if g["miss"] >= MISS_MAX: g["over"] = True
+
+    # วาด
+    screen.fill((15,23,42))
+    pygame.draw.rect(screen, (20,83,45), (0, H-GROUND, W, GROUND))     # พื้น
+    for rect, _ in g["stars"]:
+        pygame.draw.ellipse(screen, (255,216,77), rect)                 # ดาว
+    pygame.draw.rect(screen, (167,139,250), g["basket"], border_radius=8)
+
+    draw_text(f"คะแนน: {g['score']}  พลาด: {g['miss']}/{MISS_MAX}  เลเวล: {level(g['score'])}", 10, 8)
+    if g["over"]:
+        draw_text("เกมจบ! กด Space เพื่อเริ่มใหม่", W//2-120, H//2)
+
+    pygame.display.flip()
+    clock.tick(FPS)
