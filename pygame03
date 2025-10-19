@@ -1,0 +1,64 @@
+# Pygame: Memory 9 colors (super short)
+import pygame,random
+pygame.init()
+W,H,GRID=600,680,3
+scr=pygame.display.set_mode((W,H));
+clock=pygame.time.Clock()
+PAD,GAP,TOP=10,10,120
+cell=(W-PAD*2-GAP*(GRID-1))//GRID
+cells=[pygame.Rect(PAD+c*(cell+GAP),TOP+r*(cell+GAP),cell,cell)
+       for r in range(GRID) for c in range(GRID)]
+base=[(231,76,60),(46,204,113),(52,152,219),(241,196,15),(155,89,182),
+      (26,188,156),(230,126,34),(236,240,241),(149,165,166)]
+hi=[tuple(min(255,x+60) for x in c) for c in base]
+FONT=pygame.font.SysFont("arial",28,True);
+BIG=pygame.font.SysFont("arial",46,True)
+
+seq=[]; show=True; i=0; k=0; flash=None; nxt=0; level=1; over=False
+def add(): seq.append(random.randrange(9))
+
+def reset():
+    global seq,show,i,k,flash,nxt,level,over
+    seq=[]; level=1; add(); show=True; i=0; k=0; flash=None; nxt=pygame.time.get_ticks()+300; over=False
+
+def draw(hdr=""):
+    scr.fill((20,24,28))
+    scr.blit(BIG.render("Memory 9 Colors",1,(240,240,240)),(W//2-210,20))
+    t = "Level: %d  Sequence: %d"%(level,len(seq)) if not over else "Game Over - press SPACE"
+    scr.blit(FONT.render(t,1,(200,210,220)),(W//2-150,70))
+    for j,r in enumerate(cells):
+        col = hi[j] if flash==j else base[j]
+        pygame.draw.rect(scr,col,r,border_radius=14);
+        pygame.draw.rect(scr,(0,0,0),r,3,14)
+    pygame.display.flip()
+
+reset();
+run=True
+
+while run:
+    clock.tick(60); now=pygame.time.get_ticks()
+    for e in pygame.event.get():
+        if e.type==pygame.QUIT: run=False
+        if e.type==pygame.KEYDOWN and over and e.key==pygame.K_SPACE: reset()
+        if e.type==pygame.MOUSEBUTTONDOWN and (not over) and (not show):
+            for j,r in enumerate(cells):
+                if r.collidepoint(e.pos):
+                    flash=j;
+                    draw();
+                    pygame.time.wait(120);
+                    flash=None
+                    if j==seq[k]:
+                        k+=1
+                        if k==len(seq):
+                            level+=1; add(); show=True; i=0; k=0; nxt=now+500
+                    else: over=True
+
+    if (not over) and show and now>=nxt:
+        flash = seq[i] if flash is None else None
+        nxt = now + (450 if flash is not None else 180)
+        if flash is None:
+            i+=1
+            if i==len(seq): show=False
+
+    draw()
+pygame.quit()
